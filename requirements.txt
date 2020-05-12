@@ -1,0 +1,13 @@
+Redis
+python-redis-lock
+
+click
+
+requests
+fulfil-client
+
+python-dateutil
+more-itertools
+
+terminaltables
+jinja2

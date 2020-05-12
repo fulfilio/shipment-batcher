@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <title>Batching report</title>
+  </head>
+  <body>
+    <nav class="navbar navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">
+        <img src="https://cdn.fulfil.io/assets/logo/logo-negative.svg" height="30" class="d-inline-block align-top" alt="">
+      </a>
+    </nav>
+
+    <div class="row mb-3">
+      <div class="col-xl-3 col-sm-6 py-2">
+          <div class="card bg-success text-white h-100">
+              <div class="card-body bg-success">
+                  <div class="rotate">
+                      <i class="fa fa-user fa-4x"></i>
+                  </div>
+                  <h6 class="text-uppercase">Shipments</h6>
+                  <h1 class="display-4">{{ metrics['shipments'] }}</h1>
+              </div>
+          </div>
+      </div>
+      <div class="col-xl-3 col-sm-6 py-2">
+          <div class="card text-white bg-danger h-100">
+              <div class="card-body bg-danger">
+                  <div class="rotate">
+                      <i class="fa fa-list fa-4x"></i>
+                  </div>
+                  <h6 class="text-uppercase">Single unit</h6>
+                  <h1 class="display-4">{{ metrics['single_unit'] }}</h1>
+              </div>
+          </div>
+      </div>
+      <div class="col-xl-3 col-sm-6 py-2">
+          <div class="card text-white bg-info h-100">
+              <div class="card-body bg-info">
+                  <div class="rotate">
+                      <i class="fa fa-twitter fa-4x"></i>
+                  </div>
+                  <h6 class="text-uppercase">Single line</h6>
+                  <h1 class="display-4">{{ metrics['single_line'] }}</h1>
+              </div>
+          </div>
+      </div>
+      <div class="col-xl-3 col-sm-6 py-2">
+          <div class="card text-white bg-warning h-100">
+              <div class="card-body">
+                  <div class="rotate">
+                      <i class="fa fa-share fa-4x"></i>
+                  </div>
+                  <h6 class="text-uppercase">Multi line</h6>
+                  <h1 class="display-4">{{ metrics['multi_line'] }}</h1>
+              </div>
+          </div>
+      </div>
+    </div>
+
+    <div id="accordion">
+      {% for batch_name, batch_shipments in grouped_shipments %}
+      <div class="card">
+        <div class="card-header" id="headingOne">
+          <h5 class="mb-0">
+            <button class="btn btn-link" data-toggle="collapse" data-target="#collapse-{{ batch_name or 'unbatched' }}" aria-expanded="true" aria-controls="collapseOne">
+              #{{ loop.index }} {{ batch_name }}
+            </button>
+          </h5>
+        </div>
+
+        <div id="collapse-{{ batch_name or 'unbatched' }}" class="collapse" aria-labelledby="headingOne" data-parent="#accordion">
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <td>#</td>
+                  <td>Number</td>
+                  <td>Total quantity</td>
+                  <td>Items</td>
+                  <td>Locations</td>
+                </tr>
+              </thead>
+              <tbody>
+              {% for shipment in shipment_sorter(batch_shipments) %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ shipment['number'] }}</td>
+                  <td>{{ shipment['total_quantity']|int }}</td>
+                  <td>
+                    {% for item in shipment['inventory_moves'] %}
+                    {{ item['product']['code'] }}<br/>
+                    {% endfor %}
+                  </td>
+                  <td>
+                    {% for item in shipment['inventory_moves'] %}
+                    {{ item['warehouse_location_name'] }}<br/>
+                    {% endfor %}
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+  </body>
+</html>
