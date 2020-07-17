@@ -64,51 +64,67 @@
       </div>
     </div>
 
-    <div id="accordion">
-      {% for batch_name, batch_shipments in grouped_shipments %}
-      <div class="card">
-        <div class="card-header" id="headingOne">
-          <h5 class="mb-0">
-            <button class="btn btn-link" data-toggle="collapse" data-target="#collapse-{{ batch_name or 'unbatched' }}" aria-expanded="true" aria-controls="collapseOne">
-              #{{ loop.index }} {{ batch_name }}
-            </button>
-          </h5>
-        </div>
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      {% for batch_type in ["priority", "assorted", "multi-item", "single item batch"] %}
+      <li class="nav-item">
+        <a class="nav-link {% if loop.first %}active{% endif %}" href="#{{batch_type}}-tab-panel" role="tab" id="{{batch_type}}-tab" data-toggle="tab">{{ batch_type|capitalize }}</a>
+      </li>
+      {% endfor %}
+    </ul>
 
-        <div id="collapse-{{ batch_name or 'unbatched' }}" class="collapse" aria-labelledby="headingOne" data-parent="#accordion">
-          <div class="card-body">
-            <table class="table">
-              <thead>
-                <tr>
-                  <td>#</td>
-                  <td>Number</td>
-                  <td>Total quantity</td>
-                  <td>Items</td>
-                  <td>Locations</td>
-                </tr>
-              </thead>
-              <tbody>
-              {% for shipment in shipment_sorter(batch_shipments) %}
-                <tr>
-                  <td>{{ loop.index }}</td>
-                  <td>{{ shipment['number'] }}</td>
-                  <td>{{ shipment['total_quantity']|int }}</td>
-                  <td>
-                    {% for item in shipment['inventory_moves'] %}
-                    {{ item['product']['code'] }}<br/>
-                    {% endfor %}
-                  </td>
-                  <td>
-                    {% for item in shipment['inventory_moves'] %}
-                    {{ item['warehouse_location_name'] }}<br/>
-                    {% endfor %}
-                  </td>
-                </tr>
-              {% endfor %}
-              </tbody>
-            </table>
+    <div class="tab-content" id="myTabContent">
+
+      {% for batch_type in ["priority", "assorted", "multi-item", "single item batch"] %}
+      <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{batch_type}}-tab-panel" role="tabpanel" aria-labelledby="{{batch_type}}-tab">
+
+      <div id="accordion">
+        {% for batch_name, batch_shipments in grouped_shipments if batch_type.lower() in batch_name.lower() %}
+        <div class="card">
+          <div class="card-header" id="headingOne">
+            <h5 class="mb-0">
+              <button class="btn btn-link" data-toggle="collapse" data-target="#collapse-{{ batch_name or 'unbatched' }}" aria-expanded="true" aria-controls="collapseOne">
+                #{{ loop.index }} {{ batch_name }}
+              </button>
+            </h5>
+          </div>
+
+          <div id="collapse-{{ batch_name or 'unbatched' }}" class="collapse" aria-labelledby="headingOne" data-parent="#accordion">
+            <div class="card-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <td>#</td>
+                    <td>Number</td>
+                    <td>Total quantity</td>
+                    <td>Items</td>
+                    <td>Locations</td>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for shipment in shipment_sorter(batch_shipments) %}
+                  <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ shipment['number'] }}</td>
+                    <td>{{ shipment['total_quantity']|int }}</td>
+                    <td>
+                      {% for item in shipment['inventory_moves'] %}
+                      {{ item['product']['code'] }}<br/>
+                      {% endfor %}
+                    </td>
+                    <td>
+                      {% for item in shipment['inventory_moves'] %}
+                      {{ item['warehouse_location_name'] }}<br/>
+                      {% endfor %}
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+        {% endfor %}
+      </div>
       </div>
       {% endfor %}
     </div>

@@ -145,7 +145,7 @@ def _create_optimal_batches(
                 ]
                 tag_batch(
                     _shipments,
-                    "Single batch: {}".format(sku),
+                    "Single item batch: {}".format(sku),
                     cap=BATCH_SIZE_SINGLE_UNITS_MAX
                 )
 
@@ -283,7 +283,11 @@ def get_shipments(
             ('shipment.planned_date', '>=', start_date, 'stock.shipment.out')
         )
 
-    if end_date is None:
+    if end_date is not None:
+        domain.append(
+            ('shipment.planned_date', '<=', end_date, 'stock.shipment.out')
+        )
+    else:
         today = fulfil.today()
         end_date = today + relativedelta(days=FUTURE_DAYS)
         domain.append(
@@ -479,13 +483,15 @@ def create_consolidated_pick_lists(shipments):
               help='Add all left overs to another batch')
 @click.option('--poc', default=False, is_flag=True,
               help='POC mode.')
+@click.option('--pdf', default=False, is_flag=True,
+              help='Print consolidated picklists for batches')
 @click.option('--start', default=None,
               help='Start date to pick shipments.')
 @click.option('--end', default=None,
               help='End date to pick shipments.')
 def create_batches_cli(
         dry, priority, single, assorted_single, multi, leftovers,
-        poc, start, end):
+        poc, pdf, start, end):
     """
     Shipment batching system.
 
@@ -493,10 +499,14 @@ def create_batches_cli(
 
     If you want to test how the batching would have worked, use the POC
     mode. This will automatically change to dry run and create a local
-    folder with consolidate pick lists of the shipment batches.
+    folder with a HTML report showing the batches created and the shipments
+    in them.
 
     To test POCs with past data, you can optionally specify start and
     end date to test for specific date ranges.
+
+    If you want to preview consolidated pick lists, you can pass `--pdf`
+    and consolidated pick lists will also be saved to the report folder.
 
     ## End of day batches
 
@@ -532,6 +542,9 @@ def create_batches_cli(
 
     if poc:
         create_reports(shipments)
+
+    if pdf:
+        create_consolidated_pick_lists(shipments)
 
 
 if __name__ == '__main__':
