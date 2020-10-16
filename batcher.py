@@ -72,8 +72,7 @@ LOCATION_SORT_KEY = lambda s: (      # noqa
 
 
 fulfil = Client(
-    FULFIL_MERCHANT_ID,
-    auth=BearerAuth(FULFIL_ACCESS_TOKEN)
+    FULFIL_MERCHANT_ID, FULFIL_ACCESS_TOKEN
 )
 
 
