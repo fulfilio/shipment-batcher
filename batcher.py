@@ -43,10 +43,10 @@ BATCH_SIZE_SINGLE_MAX = BATCH_SIZE_MAX
 # A set of categories that should create it's own
 # batches. The only exclusion to this is high priority
 # where priority takes presedence over the category
-SPECIAL_CATEGORIES = {
+SPECIAL_CATEGORIES = set([
     # 'Category name 1',
     # 'Category name 2',
-}
+])
 
 # Number of days forward to look at when finding shipments
 # to ship. The shipments should still be ready to pick.
@@ -65,7 +65,8 @@ SLACK_WEBHOOK = os.environ.get('SLACK_WEBHOOK')
 LOCATION_SORT_KEY = lambda s: (      # noqa
     s['inventory_moves'][0]['from_location_sequence'],
     s['inventory_moves'][0]['from_location'],
-    s['inventory_moves'][0]['warehouse_location_name'] or 'Z-LOC',
+    s['inventory_moves'][0]['from_sublocation_sequence'] or 10,
+    s['inventory_moves'][0]['from_sublocation_name'] or 'Z-LOC',
     s['inventory_moves'][0]['product']['code']
 )
 
@@ -376,9 +377,10 @@ def get_shipments(
         'product',
         'product.code',
         'product.template.account_category.name',
-        'warehouse_location',
         'from_location.sequence',
         'from_location',
+        'from_sublocation.sequence',
+        'from_sublocation.name',
         'shipment.total_quantity',
         'shipment.priority',
         'shipment.planned_date',
@@ -412,7 +414,8 @@ def get_shipments(
                 'code': move['product.code'],
                 'category': move['product.template.account_category.name'],
             },
-            'warehouse_location_name': move['warehouse_location'],
+            'from_sublocation_name': move['from_sublocation.name'],
+            'from_sublocation_sequence': move['from_sublocation.sequence'],
             'from_location_sequence': move['from_location.sequence'],
             'from_location': move['from_location'],
         })
