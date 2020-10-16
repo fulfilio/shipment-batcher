@@ -65,7 +65,7 @@
     </div>
 
     <ul class="nav nav-tabs" id="myTab" role="tablist">
-      {% for batch_type in ["priority", "assorted", "multi-item", "single item batch"] %}
+      {% for batch_type in ["priority", "assorted", "multi-item", "single item batch", "category"] %}
       <li class="nav-item">
         <a class="nav-link {% if loop.first %}active{% endif %}" href="#{{batch_type}}-tab-panel" role="tab" id="{{batch_type}}-tab" data-toggle="tab">{{ batch_type|capitalize }}</a>
       </li>
@@ -74,7 +74,7 @@
 
     <div class="tab-content" id="myTabContent">
 
-      {% for batch_type in ["priority", "assorted", "multi-item", "single item batch"] %}
+      {% for batch_type in ["priority", "assorted", "multi-item", "single item batch", "category"] %}
       <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{batch_type}}-tab-panel" role="tabpanel" aria-labelledby="{{batch_type}}-tab">
 
       <div id="accordion">

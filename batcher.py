@@ -2,6 +2,7 @@ import os
 from collections import defaultdict, Counter
 from datetime import datetime
 from itertools import groupby
+import webbrowser
 
 import click
 import requests
@@ -10,7 +11,16 @@ from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse as parse_date
 from fulfil_client import Client, BearerAuth
 
-from utils import NonBlockingLock, jinja_env
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+import redis
+import redis_lock
+
+jinja_env = Environment(
+    loader=FileSystemLoader('templates'),
+    autoescape=select_autoescape(['html', 'xml'])
+)
+redis_client = redis.Redis.from_url(os.environ['REDIS_URL'])
 
 # Minimum number of shipments that should exist in a batch
 # before that gets created. If there is insufficient quantity
@@ -20,15 +30,23 @@ BATCH_SIZE_MIN = 5
 # Maximum size of the batch that should be created.
 # This usually corresponds to the number of totes in
 # a picking cart.
-BATCH_SIZE_MAX = 20
+BATCH_SIZE_MAX = 36
 
 # Single unit batch cap
-BATCH_SIZE_SINGLE_UNITS_MIN = BATCH_SIZE_MAX
+BATCH_SIZE_SINGLE_UNITS_MIN = 24
 BATCH_SIZE_SINGLE_UNITS_MAX = 500
 
 # Single line item caps
 BATCH_SIZE_SINGLE_MIN = BATCH_SIZE_MIN
-BATCH_SIZE_SINGLE_MAX = 80
+BATCH_SIZE_SINGLE_MAX = BATCH_SIZE_MAX
+
+# A set of categories that should create it's own
+# batches. The only exclusion to this is high priority
+# where priority takes presedence over the category
+SPECIAL_CATEGORIES = {
+    # 'Category name 1',
+    # 'Category name 2',
+}
 
 # Number of days forward to look at when finding shipments
 # to ship. The shipments should still be ready to pick.
@@ -36,7 +54,7 @@ FUTURE_DAYS = 1
 
 WAREHOUSE_ID = int(os.environ['FULFIL_WAREHOUSE_ID'])
 FULFIL_MERCHANT_ID = os.environ['FULFIL_MERCHANT_ID']
-FULFIL_ACCESS_TOKEN = os.environ['FULFIL_ACCESS_TOKEN']
+FULFIL_ACCESS_TOKEN = os.environ['FULFIL_OFFLINE_ACCESS_TOKEN']
 
 SLACK_WEBHOOK = os.environ.get('SLACK_WEBHOOK')
 
@@ -56,6 +74,24 @@ fulfil = Client(
     FULFIL_MERCHANT_ID,
     auth=BearerAuth(FULFIL_ACCESS_TOKEN)
 )
+
+
+class NonBlockingLock(redis_lock.Lock):
+    """
+    The default lock is blocking and gets the clock stuck :(
+    """
+    def __init__(self, name, redis_client=redis_client,
+                 expire=15*60, id=None, auto_renewal=True,
+                 strict=True):
+        return super(NonBlockingLock, self).__init__(
+            redis_client, name,
+            expire, id, auto_renewal, strict
+        )
+
+    def __enter__(self):
+        acquired = self.acquire(blocking=False)
+        assert acquired, "Lock wasn't acquired"
+        return self
 
 
 def create_optimal_batches(shipments=None, **kwargs):
@@ -108,12 +144,23 @@ def _create_optimal_batches(
     multi_shipments = []
     single_shipments = []
     single_unit_shipments = []
+    special_category_shipments = defaultdict(list)
 
     for shipment in shipments:
         # Bucket each shipment into one of the above
         # categories.
         if priority is not None and shipment['priority'] in ('0', '1'):
             priority_shipments.append(shipment)
+
+        elif shipment['product_categories'] & SPECIAL_CATEGORIES:
+            category_intersection = list(
+                shipment['product_categories'] & SPECIAL_CATEGORIES
+            )
+            if len(category_intersection) > 1:
+                category_name = "Multi "
+            else:
+                category_name = category_intersection[0]
+            special_category_shipments[category_name].append(shipment)
 
         elif shipment['total_quantity'] == 1:
             single_unit_shipments.append(shipment)
@@ -176,6 +223,17 @@ def _create_optimal_batches(
         multi_shipments = sorted(multi_shipments, key=rank_key)
         tag_batch(multi_shipments, "Multi-item batch")
 
+    if single or multi:
+        for category_name, cat_shipments in special_category_shipments.items():
+            sku_counter = _get_sku_counts(cat_shipments)
+            most_common_skus = [el[0] for el in sku_counter.most_common()]
+            rank_key = lambda shipment: min([       # noqa
+                most_common_skus.index(move['product']['code'])
+                for move in shipment['inventory_moves']
+            ])
+            cat_shipments = sorted(cat_shipments, key=rank_key)
+            tag_batch(cat_shipments, "Category: {}".format(category_name))
+
     batch_data = _get_batches_table(shipments)
     print(batch_data)
 
@@ -184,21 +242,29 @@ def _create_optimal_batches(
 
     if dry:
         print("Dry Run. No real batches were created.")
-        return shipments
-
-    today = fulfil.today()
-    key = lambda s: s.get('batch_name', '*Unbatched')   # noqa
-    batch_ids = []
-    for batch_name, b_shipments in groupby(
-            sorted(shipments, key=key), key=key):
-        if batch_name == '*Unbatched':
-            continue
-        batch_ids = ShipmentBatch.create([{
-            'name': '{}/{}'.format(today.isoformat(), batch_name,),
-            'warehouse': WAREHOUSE_ID,
-            'shipments': [('add', [s['id'] for s in b_shipments])]
-        }])
-        ShipmentBatch.open(batch_ids)
+    else:
+        today = fulfil.today()
+        key = lambda s: s.get('batch_name', '*Unbatched')   # noqa
+        batch_ids = []
+        for batch_name, b_shipments in groupby(
+                sorted(shipments, key=key), key=key):
+            if batch_name == '*Unbatched':
+                continue
+            b_shipments = list(b_shipments)
+            print([s['id'] for s in b_shipments])
+            batch_ids = ShipmentBatch.create([{
+                'name': '{}/{}'.format(today.isoformat(), batch_name,),
+                'warehouse': WAREHOUSE_ID,
+                'shipments': [('add', [s['id'] for s in b_shipments])]
+            }])
+            # for shipment in b_shipments:
+            #     print(shipment['id'])
+            #     ShipmentBatch.write(
+            #         batch_ids,
+            #         {'shipments': [('add', [shipment['id']])]}
+            #     )
+            ShipmentBatch.open(batch_ids)
+    return shipments
 
 
 def post_to_slack(batch_data, dry):
@@ -305,9 +371,11 @@ def get_shipments(
             ('shipment.shipping_batch', '=', None, 'stock.shipment.out')
         )
 
+    print(domain)
     fields = [
         'product',
         'product.code',
+        'product.template.account_category.name',
         'warehouse_location',
         'from_location.sequence',
         'from_location',
@@ -329,6 +397,7 @@ def get_shipments(
 
     shipments = defaultdict(lambda: {
         'inventory_moves': [],
+        'product_categories': set()
     })
     for move in moves:
         shipments[move['shipment']]['id'] = int(move['shipment'].split(',', 1)[-1])     # noqa
@@ -341,11 +410,15 @@ def get_shipments(
             'product': {
                 'id': move['product'],
                 'code': move['product.code'],
+                'category': move['product.template.account_category.name'],
             },
             'warehouse_location_name': move['warehouse_location'],
             'from_location_sequence': move['from_location.sequence'],
             'from_location': move['from_location'],
         })
+        shipments[move['shipment']]['product_categories'].add(
+            move['product.template.account_category.name']
+        )
     return list(shipments.values())
 
 
@@ -427,7 +500,8 @@ def create_reports(shipments):
             metrics['multi_line'] += 1
     metrics['products'] = len(set(metrics['products']))
 
-    with open(os.path.join(folder, filename), 'w') as f:
+    path_to_file = os.path.join(folder, filename)
+    with open(path_to_file, 'w') as f:
         key = lambda s: s.get('batch_name', '*Unbatched')   # noqa
         f.write(template.render(
             grouped_shipments=[
@@ -440,6 +514,7 @@ def create_reports(shipments):
                 _shipments, key=LOCATION_SORT_KEY
             )
         ))
+    return path_to_file
 
 
 def create_consolidated_pick_lists(shipments):
@@ -541,7 +616,8 @@ def create_batches_cli(
     )
 
     if poc:
-        create_reports(shipments)
+        filename = create_reports(shipments)
+        webbrowser.open(filename)
 
     if pdf:
         create_consolidated_pick_lists(shipments)
