@@ -545,6 +545,28 @@ def create_consolidated_pick_lists(shipments):
             f.write(response.content)
 
 
+def delete_unpicked_batches():
+    """
+    Call this to delete unpicked batches.
+
+    Warning: For this to work, the merchant must have started picking
+    before printing consolidated pick lists. If the workflow is not
+    followed, the merchant will end up with batches on paper, but
+    the same batch won't be on Fulfil.
+    """
+    ShipmentBatch = fulfil.model('stock.shipment.out.batch')
+
+    unpicked_batches = ShipmentBatch.search([
+        ('state', '=', 'open'),                 # open
+        ('picking_status', '=', None),          # unpicked
+        ('warehouse', '=', WAREHOUSE_ID),       # only from this warehouse
+        ('name', 'not ilike', '%priority%'),
+    ])
+    if unpicked_batches:
+        print(f"Deleting {len(unpicked_batches)} batches")
+        ShipmentBatch.delete(unpicked_batches)
+
+
 @click.command()
 @click.option('-d', '--dry', default=False, is_flag=True,
               help='Dry run instead of real batches')
@@ -566,9 +588,11 @@ def create_consolidated_pick_lists(shipments):
               help='Start date to pick shipments.')
 @click.option('--end', default=None,
               help='End date to pick shipments.')
+@click.option('--clean', default=False, is_flag=True,
+              help='Delete unpicked batches')
 def create_batches_cli(
         dry, priority, single, assorted_single, multi, leftovers,
-        poc, pdf, start, end):
+        poc, pdf, start, end, clean):
     """
     Shipment batching system.
 
@@ -610,6 +634,13 @@ def create_batches_cli(
             unbatched=False,
         )
 
+    if clean and not dry:
+        # Delete the unpicked batches if the user
+        # requested clean batches.
+        delete_unpicked_batches()
+
+    # call the method to create batches with all of the
+    # inferred and provided settings flags.
     shipments = create_optimal_batches(
         shipments=shipments,
         dry=dry, priority=priority,
