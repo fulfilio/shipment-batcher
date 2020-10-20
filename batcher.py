@@ -25,20 +25,20 @@ redis_client = redis.Redis.from_url(os.environ['REDIS_URL'])
 # Minimum number of shipments that should exist in a batch
 # before that gets created. If there is insufficient quantity
 # there is not separate batch created.
-BATCH_SIZE_MIN = 5
+BATCH_SIZE_MIN = int(os.environ.get('BATCH_SIZE_MIN', 5))
 
 # Maximum size of the batch that should be created.
 # This usually corresponds to the number of totes in
 # a picking cart.
-BATCH_SIZE_MAX = 36
+BATCH_SIZE_MAX = int(os.environ.get('BATCH_SIZE_MIN', 25))
 
 # Single unit batch cap
-BATCH_SIZE_SINGLE_UNITS_MIN = 24
-BATCH_SIZE_SINGLE_UNITS_MAX = 500
+BATCH_SIZE_SINGLE_UNITS_MIN = int(os.environ.get('BATCH_SIZE_MIN', 24))
+BATCH_SIZE_SINGLE_UNITS_MAX = int(os.environ.get('BATCH_SIZE_MIN', 500))
 
 # Single line item caps
-BATCH_SIZE_SINGLE_MIN = BATCH_SIZE_MIN
-BATCH_SIZE_SINGLE_MAX = BATCH_SIZE_MAX
+BATCH_SIZE_SINGLE_MIN = int(os.environ.get('BATCH_SIZE_MIN', BATCH_SIZE_MIN))
+BATCH_SIZE_SINGLE_MAX = int(os.environ.get('BATCH_SIZE_MIN', BATCH_SIZE_MAX))
 
 # A set of categories that should create it's own
 # batches. The only exclusion to this is high priority
