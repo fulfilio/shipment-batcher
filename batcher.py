@@ -625,8 +625,11 @@ def create_batches_cli(
         end = parse_date(end)
 
     shipments = None
+
+    # If a start or end date is specified then
+    # get the shipments only within the provided dates
     if start or end:
-        dry = True
+        dry = True      # Specifying start or end implies dry run
         shipments = get_shipments(
             start_date=start,
             end_date=end,
@@ -649,10 +652,14 @@ def create_batches_cli(
     )
 
     if poc:
+        # Create a POC html report and launch
+        # the file on the browser
         filename = create_reports(shipments)
         webbrowser.open(filename)
 
     if pdf:
+        # with POC and PDF also print consolidated
+        # picklist for the shipments
         create_consolidated_pick_lists(shipments)
 
 
