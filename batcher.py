@@ -174,14 +174,14 @@ def _create_optimal_batches(
     if priority:
         tag_batch(
             sorted(
-                [s for s in priority_shipments if s['priority'] == 0],
+                [s for s in priority_shipments if s['priority'] == '0'],
                 key=LOCATION_SORT_KEY
             ),
             "*Priority 0 batch*"
         )
         tag_batch(
             sorted(
-                [s for s in priority_shipments if s['priority'] == 1],
+                [s for s in priority_shipments if s['priority'] == '1'],
                 key=LOCATION_SORT_KEY
             ),
             "*Priority 1 batch*"
