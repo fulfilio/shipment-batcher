@@ -174,10 +174,17 @@ def _create_optimal_batches(
     if priority:
         tag_batch(
             sorted(
-                priority_shipments,
+                [s for s in priority_shipments if s['priority'] == 0],
                 key=LOCATION_SORT_KEY
             ),
-            "*Priority batch*"
+            "*Priority 0 batch*"
+        )
+        tag_batch(
+            sorted(
+                [s for s in priority_shipments if s['priority'] == 1],
+                key=LOCATION_SORT_KEY
+            ),
+            "*Priority 1 batch*"
         )
         if leftovers:
             move_unbatched_from(priority_shipments, multi_shipments)
