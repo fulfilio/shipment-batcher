@@ -568,6 +568,7 @@ def delete_unpicked_batches():
         ('picking_status', '=', None),          # unpicked
         ('warehouse', '=', WAREHOUSE_ID),       # only from this warehouse
         ('name', 'not ilike', '%priority%'),
+        ('name', 'not ilike', '%special%'),
     ])
     if unpicked_batches:
         print(f"Deleting {len(unpicked_batches)} batches")
