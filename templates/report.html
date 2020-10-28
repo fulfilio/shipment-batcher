@@ -113,7 +113,8 @@
                     </td>
                     <td>
                       {% for item in shipment['inventory_moves'] %}
-                      {{ item['warehouse_location_name'] }}<br/>
+                      {{ item['from_location.name'] }}<br/>
+                      {{ item['from_sublocation.name'] }}
                       {% endfor %}
                     </td>
                   </tr>

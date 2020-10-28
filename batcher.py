@@ -383,6 +383,7 @@ def get_shipments(
         'product',
         'product.code',
         'product.template.account_category.name',
+        'from_location.name',
         'from_location.sequence',
         'from_location',
         'from_sublocation.sequence',
@@ -423,6 +424,7 @@ def get_shipments(
             'from_sublocation_name': move['from_sublocation.name'],
             'from_sublocation_sequence': move['from_sublocation.sequence'],
             'from_location_sequence': move['from_location.sequence'],
+            'from_location_name': move['from_location.name'],
             'from_location': move['from_location'],
         })
         shipments[move['shipment']]['product_categories'].add(
